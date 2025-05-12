@@ -1,0 +1,10 @@
+[project]
+name = "vqvae"
+version = "0.1.0"
+description = "Vector Quantized Variational Autoencoder for Physics"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.setuptools]
+packages = ["vqvae"]
