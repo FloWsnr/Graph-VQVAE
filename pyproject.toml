@@ -1,5 +1,5 @@
 [project]
-name = "Graph-VQVAE"
+name = "g_vqvae"
 authors = [
   { name = "Florian Wiesner", email = "wiesnerflorian94@gmail.com" },
 ]

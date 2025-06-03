@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import torch_geometric.nn as gnn
-from g_vqvae.model.graph_vq import GraphVectorQuantizer
 from torch_geometric.data import Data
+
+from g_vqvae.model.graph_vq import GraphVectorQuantizer
 
 
 class GNN(nn.Module):
