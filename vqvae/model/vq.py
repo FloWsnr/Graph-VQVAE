@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class VectorQuantizer(nn.Module):
     """
     Vector Quantizer module that maps continuous inputs to discrete codes.
@@ -48,7 +49,7 @@ class VectorQuantizer(nn.Module):
             - Codebook loss
             - Encoding indices
         """
-        # Reshape input to (batch_size * height * width)
+        # Reshape input to (batch_size * height * width, codebook_dim)
         z_flat = z.reshape(-1, self.codebook_dim)
 
         # Calculate distances to codebook vectors

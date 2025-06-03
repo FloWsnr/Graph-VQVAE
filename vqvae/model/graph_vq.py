@@ -43,6 +43,9 @@ class GraphVectorQuantizer(nn.Module):
         ----------
         data : Data
             Input graph data containing node features and edge_index
+            data.x is a tensor of shape (num_nodes, num_features)
+            data.edge_index is a tensor of shape (2, num_edges)
+            data.edge_attr is a tensor of shape (num_edges, num_edge_features)
 
         Returns
         -------

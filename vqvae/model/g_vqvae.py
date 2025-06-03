@@ -92,11 +92,15 @@ class G_VQVAE(nn.Module):
             - Encoding indices
         """
         # Encode through GNN
-        encoded_data = self.encoder(data)
+        encoded_data: Data = self.encoder(data)
 
         # Project to codebook dimension
         z = self.to_codebook(encoded_data.x)
-        quant_data = Data(x=z, edge_index=data.edge_index)
+        quant_data = Data(
+            x=z,
+            edge_index=data.edge_index,
+            edge_attr=data.edge_attr,
+        )
 
         # Quantize
         quantized_data, loss, indices = self.quantizer(quant_data)
@@ -123,7 +127,11 @@ class G_VQVAE(nn.Module):
         # Project back to input dimension
         x_recon = self.from_codebook(decoded_data.x)
 
-        return Data(x=x_recon, edge_index=data.edge_index)
+        return Data(
+            x=x_recon,
+            edge_index=data.edge_index,
+            edge_attr=data.edge_attr,
+        )
 
     def forward(self, data: Data) -> tuple[Data, torch.Tensor, torch.Tensor]:
         """
