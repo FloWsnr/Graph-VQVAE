@@ -22,7 +22,7 @@ class GNN(nn.Module):
         """
         Forward pass through the GNN.
         """
-        x = data.x
+        x = data.x.float()
         edge_index = data.edge_index
 
         x = self.conv1(x, edge_index)
@@ -156,3 +156,13 @@ class G_VQVAE(nn.Module):
         reconstructed_data = self.decode(quantized_data)
 
         return reconstructed_data, loss, indices
+
+
+if __name__ == "__main__":
+    from g_vqvae.data.dataset import get_standard_dataset
+    from pathlib import Path
+
+    dataset = get_standard_dataset("ZINC", Path("data"))
+    data = dataset[0]
+    model = G_VQVAE(data.num_node_features)
+    reconstructed_data, loss, indices = model(data)
