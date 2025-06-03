@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch_geometric.nn as gnn
-from vqvae.model.graph_vq import GraphVectorQuantizer
+from g_vqvae.model.graph_vq import GraphVectorQuantizer
 from torch_geometric.data import Data
 
 

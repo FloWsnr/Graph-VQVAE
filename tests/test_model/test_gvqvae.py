@@ -1,6 +1,6 @@
 import torch
 from torch_geometric.data import Data
-from vqvae.model.g_vqvae import G_VQVAE
+from g_vqvae.model.g_vqvae import G_VQVAE
 
 
 def test_gnn_encoder(torch_geometric_graph):

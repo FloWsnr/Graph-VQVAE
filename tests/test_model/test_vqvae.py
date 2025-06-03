@@ -1,5 +1,5 @@
 import torch
-from vqvae.model.vqvae import (
+from g_vqvae.model.vqvae import (
     ResidualBlock,
     VectorQuantizer,
     Encoder,
