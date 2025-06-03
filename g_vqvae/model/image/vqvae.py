@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from g_vqvae.model.vq import VectorQuantizer
+from g_vqvae.model.image.vq import VectorQuantizer
 
 
 class ResidualBlock(nn.Module):

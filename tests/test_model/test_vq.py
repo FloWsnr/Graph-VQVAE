@@ -1,5 +1,5 @@
 import torch
-from g_vqvae.model.vq import VectorQuantizer
+from g_vqvae.model.image.vq import VectorQuantizer
 
 
 def test_vector_quantizer_initialization():

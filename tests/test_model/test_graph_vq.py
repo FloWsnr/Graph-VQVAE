@@ -1,6 +1,6 @@
 import torch
 from torch_geometric.data import Data
-from g_vqvae.model.graph_vq import GraphVectorQuantizer
+from g_vqvae.model.graph.graph_vq import GraphVectorQuantizer
 
 
 def test_graph_vector_quantizer_initialization():

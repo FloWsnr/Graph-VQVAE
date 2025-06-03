@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch_geometric.nn as gnn
 from torch_geometric.data import Data
 
-from g_vqvae.model.graph_vq import GraphVectorQuantizer
+from g_vqvae.model.graph.graph_vq import GraphVectorQuantizer
 
 
 class GNN(nn.Module):
