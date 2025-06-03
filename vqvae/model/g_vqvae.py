@@ -1,10 +1,38 @@
 import torch
 import torch.nn as nn
 import torch_geometric.nn as gnn
-from vqvae.model.vq import VectorQuantizer
+from vqvae.model.graph_vq import GraphVectorQuantizer
+from torch_geometric.data import Data
 
 
 class GNN(nn.Module):
+    """
+    Graph Neural Network encoder/decoder.
+    """
+
+    def __init__(self, in_channels: int, hidden_dim: int = 256):
+        super().__init__()
+
+        self.conv1 = gnn.GCNConv(in_channels, hidden_dim)
+        self.conv2 = gnn.GCNConv(hidden_dim, hidden_dim)
+        self.relu = nn.ReLU()
+
+    def forward(self, data: Data) -> Data:
+        """
+        Forward pass through the GNN.
+        """
+        x = data.x
+        edge_index = data.edge_index
+
+        x = self.conv1(x, edge_index)
+        x = self.relu(x)
+        x = self.conv2(x, edge_index)
+        x = self.relu(x)
+
+        return Data(x=x, edge_index=edge_index)
+
+
+class G_VQVAE(nn.Module):
     """
     Graph Neural Network encoder/decoder with vector quantization.
 
@@ -32,100 +60,90 @@ class GNN(nn.Module):
     ):
         super().__init__()
 
-        # Encoder
-        self.encoder = nn.Sequential(
-            gnn.GCNConv(in_channels, hidden_dim),
-            nn.ReLU(),
-            gnn.GCNConv(hidden_dim, hidden_dim),
-            nn.ReLU(),
-        )
+        # Encoder and decoder GNNs
+        self.encoder = GNN(in_channels, hidden_dim)
+        self.decoder = GNN(codebook_dim, hidden_dim)
 
         # Projection layers for codebook
         self.to_codebook = nn.Linear(hidden_dim, codebook_dim)
-        self.from_codebook = nn.Linear(codebook_dim, hidden_dim)
+        self.from_codebook = nn.Linear(hidden_dim, in_channels)
 
         # Vector Quantizer
-        self.quantizer = VectorQuantizer(
+        self.quantizer = GraphVectorQuantizer(
             codebook_size=codebook_size,
             codebook_dim=codebook_dim,
             commitment_cost=commitment_cost,
         )
 
-        # Decoder
-        self.decoder = nn.Sequential(
-            gnn.GCNConv(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            gnn.GCNConv(hidden_dim, in_channels),
-        )
-
-    def encode(
-        self, x: torch.Tensor, edge_index: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def encode(self, data: Data) -> tuple[Data, torch.Tensor, torch.Tensor]:
         """
         Encode the input graph.
 
         Parameters
         ----------
-        x : torch.Tensor
-            Node features of shape (num_nodes, in_channels)
-        edge_index : torch.Tensor
-            Graph connectivity of shape (2, num_edges)
+        data : Data
+            Input graph data containing node features and edge_index
 
         Returns
         -------
-        tuple[torch.Tensor, torch.Tensor, torch.Tensor]
-            - Quantized tensor
+        tuple[Data, torch.Tensor, torch.Tensor]
+            - Quantized graph data
             - Codebook loss
             - Encoding indices
         """
-        z = self.encoder(x, edge_index)
-        z = self.to_codebook(z)
-        z_q, loss, indices = self.quantizer(z)
-        return z_q, loss, indices
+        # Encode through GNN
+        encoded_data = self.encoder(data)
 
-    def decode(self, z_q: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        # Project to codebook dimension
+        z = self.to_codebook(encoded_data.x)
+        quant_data = Data(x=z, edge_index=data.edge_index)
+
+        # Quantize
+        quantized_data, loss, indices = self.quantizer(quant_data)
+
+        return quantized_data, loss, indices
+
+    def decode(self, data: Data) -> Data:
         """
         Decode the quantized graph representation.
 
         Parameters
         ----------
-        z_q : torch.Tensor
-            Quantized tensor of shape (num_nodes, codebook_dim)
-        edge_index : torch.Tensor
-            Graph connectivity of shape (2, num_edges)
+        data : Data
+            Quantized graph data containing node features and edge_index
 
         Returns
         -------
-        torch.Tensor
-            Reconstructed node features
+        Data
+            Reconstructed graph data
         """
-        z_q = self.from_codebook(z_q)
-        x_recon = self.decoder(z_q, edge_index)
-        return x_recon
+        # Decode through GNN
+        decoded_data = self.decoder(data)
 
-    def forward(
-        self, x: torch.Tensor, edge_index: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        # Project back to input dimension
+        x_recon = self.from_codebook(decoded_data.x)
+
+        return Data(x=x_recon, edge_index=data.edge_index)
+
+    def forward(self, data: Data) -> tuple[Data, torch.Tensor, torch.Tensor]:
         """
         Forward pass through the VQ-GNN.
 
         Parameters
         ----------
-        x : torch.Tensor
-            Node features of shape (num_nodes, in_channels)
-        edge_index : torch.Tensor
-            Graph connectivity of shape (2, num_edges)
+        data : Data
+            Input graph data containing node features and edge_index
 
         Returns
         -------
-        tuple[torch.Tensor, torch.Tensor, torch.Tensor]
-            - Reconstructed node features
+        tuple[Data, torch.Tensor, torch.Tensor]
+            - Reconstructed graph data
             - Codebook loss
             - Encoding indices
         """
         # Encode
-        z_q, loss, indices = self.encode(x, edge_index)
+        quantized_data, loss, indices = self.encode(data)
         # Decode
-        x_recon = self.decode(z_q, edge_index)
+        reconstructed_data = self.decode(quantized_data)
 
-        return x_recon, loss, indices
+        return reconstructed_data, loss, indices
