@@ -1,5 +1,8 @@
 [project]
-name = "vqvae"
+name = "Graph-VQVAE"
+authors = [
+  { name = "Florian Wiesner", email = "wiesnerflorian94@gmail.com" },
+]
 version = "0.2.0"
 description = "Vector Quantized Variational Autoencoder for Graphs"
 readme = "README.md"
@@ -7,4 +10,4 @@ requires-python = ">=3.12"
 dependencies = []
 
 [tool.setuptools]
-packages = ["vqvae"]
+packages = ["g_vqvae"]
