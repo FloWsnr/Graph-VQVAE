@@ -1,7 +1,7 @@
 [project]
 name = "vqvae"
-version = "0.1.0"
-description = "Vector Quantized Variational Autoencoder for Physics"
+version = "0.2.0"
+description = "Vector Quantized Variational Autoencoder for Graphs"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
