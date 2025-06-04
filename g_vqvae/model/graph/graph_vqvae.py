@@ -1,54 +1,37 @@
 import torch
 import torch.nn as nn
-import torch_geometric.nn as gnn
 from torch_geometric.data import Data
+from typing import Dict, Any, Optional
 
 from g_vqvae.model.graph.graph_vq import GraphVectorQuantizer
-
-
-class GNN(nn.Module):
-    """
-    Graph Neural Network encoder/decoder.
-    """
-
-    def __init__(self, in_channels: int, hidden_dim: int = 256):
-        super().__init__()
-
-        self.conv1 = gnn.GCNConv(in_channels, hidden_dim)
-        self.conv2 = gnn.GCNConv(hidden_dim, hidden_dim)
-        self.relu = nn.ReLU()
-
-    def forward(self, data: Data) -> Data:
-        """
-        Forward pass through the GNN.
-        """
-        x = data.x.float()
-        edge_index = data.edge_index
-
-        x = self.conv1(x, edge_index)
-        x = self.relu(x)
-        x = self.conv2(x, edge_index)
-        x = self.relu(x)
-
-        return Data(x=x, edge_index=edge_index)
-
+from g_vqvae.model.graph.encoder import GraphEncoder
+from g_vqvae.model.graph.decoder import GraphDecoder
 
 class G_VQVAE(nn.Module):
     """
-    Graph Neural Network encoder/decoder with vector quantization.
+    Graph Neural Network Autoencoder with vector quantization.
+
+    The model convert the input graph to a fully connected graph,
+    performs feature extraction, quantizes the features, and reconstructs the graph.
+
+    Currently, no edge features are used.
 
     Parameters
     ----------
     in_channels : int
         Number of input features per node
     hidden_dim : int
-        Hidden dimension for the GNN layers
+        Hidden dimension for the encoder/decoder layers
     codebook_size : int
         Number of embeddings in the codebook
     codebook_dim : int
         Dimension of each embedding vector
     commitment_cost : float
         Commitment cost for the codebook loss
+    encoder_config : dict, optional
+        Configuration for the encoder (layer_type, pooling_type, etc.)
+    decoder_config : dict, optional
+        Configuration for the decoder (layer_type, unpooling_type, etc.)
     """
 
     def __init__(
@@ -58,80 +41,38 @@ class G_VQVAE(nn.Module):
         codebook_size: int = 512,
         codebook_dim: int = 256,
         commitment_cost: float = 0.25,
+        encoder_config: Optional[Dict[str, Any]] = None,
+        decoder_config: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
+        
+        # Default configurations
+        if encoder_config is None:
+            encoder_config = {"layer_type": "gcn", "pooling_type": "SAG"}
+        if decoder_config is None:
+            decoder_config = {"layer_type": "gcn"}
 
-        # Encoder and decoder GNNs
-        self.encoder = GNN(in_channels, hidden_dim)
-        self.decoder = GNN(codebook_dim, hidden_dim)
+        # Create encoder
+        self.encoder = GraphEncoder(
+            in_channels=in_channels,
+            hidden_dim=hidden_dim,
+            layer_type=encoder_config["layer_type"],
+            pooling_type=encoder_config["pooling_type"],
+        )
 
-        # Projection layers for codebook
-        self.to_codebook = nn.Linear(hidden_dim, codebook_dim)
-        self.from_codebook = nn.Linear(hidden_dim, in_channels)
+        # Create decoder
+        self.decoder = GraphDecoder(
+            codebook_dim=codebook_dim,
+            hidden_dim=hidden_dim,
+            out_channels=in_channels,
+            layer_type=decoder_config["layer_type"],
+        )
 
         # Vector Quantizer
         self.quantizer = GraphVectorQuantizer(
             codebook_size=codebook_size,
             codebook_dim=codebook_dim,
             commitment_cost=commitment_cost,
-        )
-
-    def encode(self, data: Data) -> tuple[Data, torch.Tensor, torch.Tensor]:
-        """
-        Encode the input graph.
-
-        Parameters
-        ----------
-        data : Data
-            Input graph data containing node features and edge_index
-
-        Returns
-        -------
-        tuple[Data, torch.Tensor, torch.Tensor]
-            - Quantized graph data
-            - Codebook loss
-            - Encoding indices
-        """
-        # Encode through GNN
-        encoded_data: Data = self.encoder(data)
-
-        # Project to codebook dimension
-        z = self.to_codebook(encoded_data.x)
-        quant_data = Data(
-            x=z,
-            edge_index=data.edge_index,
-            edge_attr=data.edge_attr,
-        )
-
-        # Quantize
-        quantized_data, loss, indices = self.quantizer(quant_data)
-
-        return quantized_data, loss, indices
-
-    def decode(self, data: Data) -> Data:
-        """
-        Decode the quantized graph representation.
-
-        Parameters
-        ----------
-        data : Data
-            Quantized graph data containing node features and edge_index
-
-        Returns
-        -------
-        Data
-            Reconstructed graph data
-        """
-        # Decode through GNN
-        decoded_data = self.decoder(data)
-
-        # Project back to input dimension
-        x_recon = self.from_codebook(decoded_data.x)
-
-        return Data(
-            x=x_recon,
-            edge_index=data.edge_index,
-            edge_attr=data.edge_attr,
         )
 
     def forward(self, data: Data) -> tuple[Data, torch.Tensor, torch.Tensor]:
@@ -150,19 +91,16 @@ class G_VQVAE(nn.Module):
             - Codebook loss
             - Encoding indices
         """
-        # Encode
-        quantized_data, loss, indices = self.encode(data)
-        # Decode
-        reconstructed_data = self.decode(quantized_data)
+        # store the original num nodes
+        num_nodes = data.num_nodes
+        # Encode the graph with pooling (i.e. less nodes)
+        z_graph = self.encoder(data)
 
-        return reconstructed_data, loss, indices
+        # Quantize
+        z_graph, loss, indices = self.quantizer(z_graph)
 
+        # Decode the graph with unpooling
+        # the decoder only gets the node features and must infer the edges
+        data_rec = self.decoder(z_graph.x, num_nodes)
 
-if __name__ == "__main__":
-    from g_vqvae.data.dataset import get_standard_dataset
-    from pathlib import Path
-
-    dataset = get_standard_dataset("ZINC", Path("data"))
-    data = dataset[0]
-    model = G_VQVAE(data.num_node_features)
-    reconstructed_data, loss, indices = model(data)
+        return data_rec, loss, indices

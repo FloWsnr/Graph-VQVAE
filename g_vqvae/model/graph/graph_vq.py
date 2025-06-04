@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 import torch.nn as nn
 from torch_geometric.data import Data
@@ -56,6 +58,12 @@ class GraphVectorQuantizer(nn.Module):
         """
         # Get node features
         z = data.x
+
+        # warn if number of nodes is more than half of codebook size
+        if z.shape[0] > self.codebook_size // 2:
+            warnings.warn(
+                f"Number of nodes ({z.shape[0]}) is more than half of codebook size ({self.codebook_size})."
+            )
 
         # Calculate distances to codebook vectors
         d = (

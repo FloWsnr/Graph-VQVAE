@@ -5,8 +5,8 @@ Using Vector-Quantized VAEs to model physics
 ## Installation
 
 ```bash
-conda create -n gnn_vqvae python=3.12
-conda activate gnn_vqvae
+conda create -n g_vqvae python=3.12
+conda activate g_vqvae
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 pip install torch_geometric
 pip install einops h5py imageio ipykernel matplotlib pandas wandb dotenv prodigyopt
