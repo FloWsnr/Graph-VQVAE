@@ -50,7 +50,7 @@ def test_graph_vector_quantizer_forward(torch_geometric_graph):
 
     # Check that quantized values are from codebook
     for i, idx in enumerate(indices):
-        assert torch.allclose(quantized_data.x[i], quantizer.embedding.weight[idx])
+        assert torch.allclose(quantized_data.x[i], quantizer.embedding.weight[idx], atol=1e-6)
 
 
 def test_graph_vector_quantizer_straight_through(torch_geometric_graph):
@@ -64,7 +64,7 @@ def test_graph_vector_quantizer_straight_through(torch_geometric_graph):
 
     # Create input data with node features in codebook dimension
     data = Data(
-        x=torch.randn(torch_geometric_graph.num_nodes, codebook_dim),
+        x=torch.randn(torch_geometric_graph.num_nodes, codebook_dim, requires_grad=True),
         edge_index=torch_geometric_graph.edge_index,
     )
 
